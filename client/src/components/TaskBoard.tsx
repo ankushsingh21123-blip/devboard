@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@apollo/client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   CREATE_TASK,
   DELETE_TASK,
@@ -13,6 +13,8 @@ const STATUSES = ['TODO', 'IN_PROGRESS', 'DONE'] as const;
 
 export function TaskBoard({ projectId, projectName }: { projectId: string; projectName: string }) {
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const titleInput = useRef<HTMLInputElement>(null);
+  const [titleInvalid, setTitleInvalid] = useState(false);
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
   const [formError, setFormError] = useState<string | null>(null);
@@ -39,7 +41,9 @@ export function TaskBoard({ projectId, projectName }: { projectId: string; proje
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
+      setTitleInvalid(true);
       setFormError('Task title is required.');
+      titleInput.current?.focus();
       return;
     }
     void createTask({
@@ -51,14 +55,24 @@ export function TaskBoard({ projectId, projectName }: { projectId: string; proje
     <section className="card">
       <h2>Tasks — {projectName}</h2>
 
-      <form onSubmit={submit} className="task-form">
+      <form onSubmit={submit} className="task-form" aria-label="Add task">
+        <label className="task-title-field">
+          Task title (required)
         <input
+          ref={titleInput}
+          name="title"
+          required
+          aria-invalid={titleInvalid || undefined}
+          aria-describedby={titleInvalid ? 'task-error' : undefined}
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            if (titleInvalid && e.target.value.trim()) { setTitleInvalid(false); setFormError(null); }
+          }}
           placeholder="New task title…"
           maxLength={200}
-          aria-label="Task title"
         />
+        </label>
         <select value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)} aria-label="Priority">
           <option value="LOW">Low</option>
           <option value="MEDIUM">Medium</option>
@@ -66,7 +80,7 @@ export function TaskBoard({ projectId, projectName }: { projectId: string; proje
         </select>
         <button type="submit" disabled={creating}>{creating ? 'Adding…' : 'Add task'}</button>
       </form>
-      {formError && <p className="error" role="alert">{formError}</p>}
+      {formError && <p id="task-error" className="error" role="alert">{formError}</p>}
 
       <div className="filters" role="group" aria-label="Filter tasks by status">
         <button className={statusFilter === '' ? 'active' : ''} onClick={() => setStatusFilter('')}>All</button>
