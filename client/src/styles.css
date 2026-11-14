@@ -34,7 +34,9 @@ form > button[type='submit']:hover:not(:disabled), .task-form > button:hover:not
 .project-button:hover { background: none; }
 
 .task-form { display: flex; gap: 8px; margin-bottom: 12px; }
-.task-form input { flex: 1; }
+.task-form { align-items: end; }
+.task-title-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; font-size: 0.9rem; font-weight: 600; }
+.task-title-field input { min-width: 0; font-weight: 400; }
 .filters { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
 .filters button.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
 
@@ -52,7 +54,7 @@ form > button[type='submit']:hover:not(:disabled), .task-form > button:hover:not
 @media (max-width: 540px) {
   .grid > * { min-width: 0; }
   .task-form { flex-wrap: wrap; }
-  .task-form input { min-width: 0; flex: 1 1 100%; }
+  .task-title-field { flex: 1 1 100%; }
   .task { flex-direction: column; }
   .task-actions { flex-wrap: wrap; }
 }
