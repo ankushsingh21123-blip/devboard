@@ -43,8 +43,16 @@ form > button[type='submit']:hover:not(:disabled), .task-form > button:hover:not
 .task-actions { display: flex; gap: 8px; align-items: flex-start; }
 .badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
 .priority-low { background: #e8f5e9; color: #2e7d32; }
-.priority-medium { background: #fff8e1; color: #f57f17; }
+.priority-medium { background: #fff8e1; color: #8a4500; }
 .priority-high { background: #fdecea; color: #b3261e; }
 .danger { color: #b3261e; border-color: #f5c6c2; }
 .danger:hover:not(:disabled) { background: #fdecea; }
 .small { padding: 4px 8px; font-size: 0.85rem; }
+
+@media (max-width: 540px) {
+  .grid > * { min-width: 0; }
+  .task-form { flex-wrap: wrap; }
+  .task-form input { min-width: 0; flex: 1 1 100%; }
+  .task { flex-direction: column; }
+  .task-actions { flex-wrap: wrap; }
+}
