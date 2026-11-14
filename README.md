@@ -4,6 +4,22 @@ A working full-stack project and task tracker built to demonstrate end-to-end
 development with **React**, **TypeScript**, **JavaScript**, **Node.js**,
 **MongoDB**, and **GraphQL**.
 
+
+## Live demo
+
+**https://devboard-iota-seven.vercel.app** — deployed 14 Nov 2026.
+
+Production deployment (zero cost):
+
+- **Frontend**: the Vite/React build in `client/`, served as static files by Vercel.
+- **Backend**: the Express + Apollo GraphQL server in `server/`, wrapped as a
+  Vercel serverless function (`api/server.ts`) so the same deployment serves
+  both the UI and `/graphql` (same-origin; cross-origin mutations are rejected).
+- **Database**: MongoDB Atlas M0 free cluster (persistent; data survives
+  redeploys and restarts). Connection string lives in a Vercel environment
+  variable (`MONGODB_URI`), never in git.
+- Writes from the public demo are same-origin only; the demo data is synthetic.
+
 ## Skills used
 
 React · TypeScript · JavaScript · Node.js · MongoDB · GraphQL · Apollo Server ·
@@ -86,8 +102,8 @@ npm run build     # tsc + Vite production build
 
 ## Author
 
-Ankush Singh — B.Tech Computer Science student, Scaler School of Technology
-(2nd year) and BS Data Science, BITS Pilani. GitHub:
+Ankush Singh — Computer Science programme, Scaler School of Technology
+(2nd year), and B.Sc. Computer Science, BITS Pilani (online). GitHub:
 [github.com/ankushsingh21123-blip](https://github.com/ankushsingh21123-blip).
 
 Built as a proof project for the Weekday Software Engineer Intern application.
