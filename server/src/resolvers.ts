@@ -1,6 +1,9 @@
 import { GraphQLError } from 'graphql';
 import mongoose from 'mongoose';
+import { summariseProject } from './aiSummary.js';
 import { Project, Task } from './models.js';
+import { buildReminders } from './reminders.js';
+import { suggestTriage } from './triage.js';
 
 const badInput = (message: string) => new GraphQLError(message, { extensions: { code: 'BAD_USER_INPUT' } });
 
@@ -77,6 +80,54 @@ export const resolvers = {
       requireObjectId(args.id, 'id');
       const doc = await Task.findById(args.id);
       return doc ? toTask(doc) : null;
+    },
+    triageTask: (
+      _: unknown,
+      args: { title: string; description?: string; dueDate?: string },
+    ) => {
+      const title = requireNonEmpty(args.title, 'title');
+      return suggestTriage({ title, description: args.description, dueDate: args.dueDate });
+    },
+    projectSummary: async (_: unknown, args: { projectId: string }) => {
+      requireObjectId(args.projectId, 'projectId');
+      const project = await Project.findById(args.projectId);
+      if (!project) throw notFound('Project');
+      const docs = await Task.find({ projectId: args.projectId }).sort({ createdAt: -1 });
+      const tasks = docs.map((doc) => {
+        const d = doc.toObject() as unknown as Record<string, unknown>;
+        return {
+          title: d.title as string,
+          description: (d.description as string) ?? '',
+          status: d.status as string,
+          priority: d.priority as string,
+          dueDate: (d.dueDate as Date | null) ?? null,
+        };
+      });
+      // No key set (or any API failure) -> the local summary fallback.
+      // The key is never logged or returned.
+      return summariseProject(project.name, tasks, {
+        apiKey: process.env.GEMINI_API_KEY,
+        model: process.env.GEMINI_MODEL,
+      });
+    },
+    dueReminders: async (_: unknown, args: { projectId?: string }) => {
+      const filter: Record<string, unknown> = {};
+      if (args.projectId) {
+        requireObjectId(args.projectId, 'projectId');
+        filter.projectId = args.projectId;
+      }
+      const docs = await Task.find(filter).sort({ dueDate: 1 });
+      return buildReminders(
+        docs.map((doc) => {
+          const d = doc.toObject() as unknown as Record<string, unknown>;
+          return {
+            id: String(d._id),
+            title: d.title as string,
+            status: d.status as string,
+            dueDate: (d.dueDate as Date | null) ?? null,
+          };
+        }),
+      );
     },
   },
   Mutation: {
@@ -165,6 +216,23 @@ export const resolvers = {
       const doc = await Task.findByIdAndDelete(args.id);
       if (!doc) throw notFound('Task');
       return true;
+    },
+    autoTriageTask: async (_: unknown, args: { id: string }) => {
+      requireObjectId(args.id, 'id');
+      const existing = await Task.findById(args.id);
+      if (!existing) throw notFound('Task');
+      const suggestion = suggestTriage({
+        title: existing.title,
+        description: existing.description,
+        dueDate: existing.dueDate,
+      });
+      const doc = await Task.findByIdAndUpdate(
+        args.id,
+        { priority: suggestion.suggestedPriority },
+        { new: true, runValidators: true },
+      );
+      if (!doc) throw notFound('Task');
+      return toTask(doc);
     },
   },
 };

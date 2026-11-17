@@ -1,13 +1,17 @@
-import { useMutation, useQuery } from '@apollo/client';
+import { useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import { useRef, useState } from 'react';
 import {
+  AUTO_TRIAGE_TASK,
   CREATE_TASK,
   DELETE_TASK,
   GET_PROJECTS,
   GET_TASKS,
+  TRIAGE_TASK,
   UPDATE_TASK,
   type Task,
+  type TriageSuggestion,
 } from '../graphql';
+import { AutomationPanel } from './AutomationPanel';
 
 const STATUSES = ['TODO', 'IN_PROGRESS', 'DONE'] as const;
 
@@ -18,6 +22,7 @@ export function TaskBoard({ projectId, projectName }: { projectId: string; proje
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
   const [formError, setFormError] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<TriageSuggestion | null>(null);
 
   const { data, loading, error, refetch } = useQuery<{ tasks: Task[] }>(GET_TASKS, {
     variables: { projectId, status: statusFilter || undefined },
@@ -27,12 +32,21 @@ export function TaskBoard({ projectId, projectName }: { projectId: string; proje
   const [createTask, { loading: creating }] = useMutation(CREATE_TASK, {
     onCompleted: () => {
       setTitle('');
+      setSuggestion(null);
       setFormError(null);
       void refetch();
     },
     onError: (err) => setFormError(err.message),
   });
   const [updateTask] = useMutation(UPDATE_TASK, { onCompleted: () => void refetch() });
+  const [autoTriageTask] = useMutation(AUTO_TRIAGE_TASK, { onCompleted: () => void refetch() });
+  const [runTriage, { loading: triaging }] = useLazyQuery<{ triageTask: TriageSuggestion }>(
+    TRIAGE_TASK,
+    {
+      onCompleted: (result) => setSuggestion(result.triageTask),
+      onError: (err) => setFormError(err.message),
+    },
+  );
   const [deleteTask] = useMutation(DELETE_TASK, {
     onCompleted: () => void refetch(),
     refetchQueries: [{ query: GET_PROJECTS }],
@@ -67,6 +81,7 @@ export function TaskBoard({ projectId, projectName }: { projectId: string; proje
           value={title}
           onChange={(e) => {
             setTitle(e.target.value);
+            setSuggestion(null);
             if (titleInvalid && e.target.value.trim()) { setTitleInvalid(false); setFormError(null); }
           }}
           placeholder="New task title…"
@@ -78,9 +93,37 @@ export function TaskBoard({ projectId, projectName }: { projectId: string; proje
           <option value="MEDIUM">Medium</option>
           <option value="HIGH">High</option>
         </select>
+        <button
+          type="button"
+          disabled={triaging || !title.trim()}
+          onClick={() => void runTriage({ variables: { title: title.trim() } })}
+        >
+          {triaging ? 'Checking…' : 'Suggest priority'}
+        </button>
         <button type="submit" disabled={creating}>{creating ? 'Adding…' : 'Add task'}</button>
       </form>
       {formError && <p id="task-error" className="error" role="alert">{formError}</p>}
+      {suggestion && (
+        <div className="suggestion" role="status">
+          <p>
+            Suggested priority: <strong>{suggestion.suggestedPriority}</strong> · looks like a{' '}
+            {suggestion.label.toLowerCase()} task.
+          </p>
+          <ul>
+            {suggestion.reasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+          <button type="button" onClick={() => { setPriority(suggestion.suggestedPriority); setSuggestion(null); }}>
+            Use {suggestion.suggestedPriority.toLowerCase()} priority
+          </button>{' '}
+          <button type="button" onClick={() => setSuggestion(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      <AutomationPanel projectId={projectId} />
 
       <div className="filters" role="group" aria-label="Filter tasks by status">
         <button className={statusFilter === '' ? 'active' : ''} onClick={() => setStatusFilter('')}>All</button>
@@ -124,6 +167,13 @@ export function TaskBoard({ projectId, projectName }: { projectId: string; proje
                   <option key={s} value={s}>{s.replace('_', ' ')}</option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => void autoTriageTask({ variables: { id: task.id } })}
+                title="Set priority automatically from the task title, description, and due date"
+              >
+                Auto-triage
+              </button>
               <button
                 className="danger"
                 onClick={() => {

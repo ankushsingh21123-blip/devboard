@@ -84,6 +84,53 @@ export const DELETE_TASK = gql`
   }
 `;
 
+export const TRIAGE_TASK = gql`
+  query TriageTask($title: String!, $description: String, $dueDate: String) {
+    triageTask(title: $title, description: $description, dueDate: $dueDate) {
+      suggestedPriority
+      reasons
+      label
+    }
+  }
+`;
+
+export const PROJECT_SUMMARY = gql`
+  query ProjectSummary($projectId: ID!) {
+    projectSummary(projectId: $projectId) {
+      summary
+      nextSteps
+      source
+      totalTasks
+      doneTasks
+      openTasks
+      overdueTasks
+    }
+  }
+`;
+
+export const DUE_REMINDERS = gql`
+  query DueReminders($projectId: ID) {
+    dueReminders(projectId: $projectId) {
+      taskId
+      title
+      dueDate
+      level
+      message
+    }
+  }
+`;
+
+export const AUTO_TRIAGE_TASK = gql`
+  mutation AutoTriageTask($id: ID!) {
+    autoTriageTask(id: $id) {
+      id
+      title
+      status
+      priority
+    }
+  }
+`;
+
 export type Project = {
   id: string;
   name: string;
@@ -103,4 +150,28 @@ export type Task = {
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   dueDate: string | null;
   createdAt: string;
+};
+
+export type TriageSuggestion = {
+  suggestedPriority: 'LOW' | 'MEDIUM' | 'HIGH';
+  reasons: string[];
+  label: 'BUG' | 'FEATURE' | 'DOCS' | 'CHORE' | 'TASK';
+};
+
+export type ProjectSummary = {
+  summary: string;
+  nextSteps: string[];
+  source: string;
+  totalTasks: number;
+  doneTasks: number;
+  openTasks: number;
+  overdueTasks: number;
+};
+
+export type DueReminder = {
+  taskId: string;
+  title: string;
+  dueDate: string;
+  level: 'OVERDUE' | 'DUE_TODAY' | 'DUE_SOON';
+  message: string;
 };

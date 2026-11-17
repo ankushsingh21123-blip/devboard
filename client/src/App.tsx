@@ -22,7 +22,8 @@ export function App() {
         <h1>DevBoard</h1>
         <p className="muted">
           A full-stack project &amp; task tracker — React + TypeScript frontend, Node.js + GraphQL API,
-          MongoDB storage.
+          MongoDB storage, with rule-based auto-triage, due-date reminders, and optional Gemini-powered
+          project summaries.
         </p>
       </header>
 

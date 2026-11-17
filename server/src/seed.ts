@@ -32,7 +32,7 @@ const seedTasks: Array<{ project: number; title: string; description: string; st
   {
     project: 0,
     title: 'Write automated tests',
-    description: 'Backend GraphQL tests against an in-memory MongoDB (11 passing).',
+    description: 'Backend GraphQL tests against an in-memory MongoDB.',
     status: 'DONE',
     priority: 'MEDIUM',
   },

@@ -51,6 +51,22 @@ form > button[type='submit']:hover:not(:disabled), .task-form > button:hover:not
 .danger:hover:not(:disabled) { background: #fdecea; }
 .small { padding: 4px 8px; font-size: 0.85rem; }
 
+.automation { border: 1px dashed #c9ccd1; border-radius: 8px; padding: 12px; margin-bottom: 12px; background: #fbfcfe; }
+.automation h3 { margin: 0 0 8px; }
+.reminder-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.reminder { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.reminder .badge { margin-left: 0; }
+.level-overdue { background: #fdecea; color: #b3261e; }
+.level-due_today { background: #fff8e1; color: #8a4500; }
+.level-due_soon { background: #e8f0fe; color: #1a56db; }
+.summary-result { margin-top: 10px; }
+.summary-result p { margin: 6px 0; }
+.next-steps { margin: 6px 0; padding-left: 18px; }
+.source-note { font-size: 0.85rem; }
+.suggestion { background: #f0f6ff; border: 1px solid #bcd6f7; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.suggestion p { margin: 0; }
+.suggestion ul { margin: 6px 0 10px; padding-left: 18px; }
+
 @media (max-width: 540px) {
   .grid > * { min-width: 0; }
   .task-form { flex-wrap: wrap; }

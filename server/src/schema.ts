@@ -72,6 +72,47 @@ export const typeDefs = `#graphql
     project(id: ID!): Project
     tasks(projectId: ID, status: TaskStatus): [Task!]!
     task(id: ID!): Task
+    triageTask(title: String!, description: String, dueDate: String): TriageSuggestion!
+    projectSummary(projectId: ID!): ProjectSummary!
+    dueReminders(projectId: ID): [DueReminder!]!
+  }
+
+  enum TriageLabel {
+    BUG
+    FEATURE
+    DOCS
+    CHORE
+    TASK
+  }
+
+  type TriageSuggestion {
+    suggestedPriority: Priority!
+    reasons: [String!]!
+    label: TriageLabel!
+  }
+
+  type ProjectSummary {
+    summary: String!
+    nextSteps: [String!]!
+    source: String!
+    totalTasks: Int!
+    doneTasks: Int!
+    openTasks: Int!
+    overdueTasks: Int!
+  }
+
+  enum ReminderLevel {
+    OVERDUE
+    DUE_TODAY
+    DUE_SOON
+  }
+
+  type DueReminder {
+    taskId: ID!
+    title: String!
+    dueDate: String!
+    level: ReminderLevel!
+    message: String!
   }
 
   type Mutation {
@@ -81,5 +122,6 @@ export const typeDefs = `#graphql
     createTask(input: CreateTaskInput!): Task!
     updateTask(id: ID!, input: UpdateTaskInput!): Task!
     deleteTask(id: ID!): Boolean!
+    autoTriageTask(id: ID!): Task!
   }
 `;

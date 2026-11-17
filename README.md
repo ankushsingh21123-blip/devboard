@@ -23,7 +23,8 @@ Production deployment (zero cost):
 ## Skills used
 
 React · TypeScript · JavaScript · Node.js · MongoDB · GraphQL · Apollo Server ·
-Apollo Client · Express · Mongoose · Vite · Vitest
+Apollo Client · Express · Mongoose · Vite · Vitest · Google Gemini API (REST) ·
+Rule-based automation
 
 ## What it does
 
@@ -32,7 +33,41 @@ Apollo Client · Express · Mongoose · Vite · Vitest
 - Filter tasks by status; per-project task counts and completed counts are computed live.
 - GraphQL API with input validation: empty names/titles, malformed ids, invalid dates, and tasks for missing projects are rejected with typed errors (`BAD_USER_INPUT`, `NOT_FOUND`).
 - Deleting a project deletes its tasks (cascade).
-- Seed data included (`npm run seed` in `server/`): 2 projects, 5 tasks.
+- AI automations (see below): rule-based auto-triage with reasons, due-date
+  reminders, and project summaries — Gemini-powered when a key is set, local
+  otherwise.
+- Seed data included (`npm run seed` in `server/`): 2 projects, 6 tasks.
+
+## AI automations (Nov 2026 update)
+
+Build note — added 17 Nov 2026. Everything below is implemented in the code
+and covered by tests; nothing here is a mock or a placeholder.
+
+- **Rule-based auto-triage** (`server/src/triage.ts`, pure functions, no API
+  key): suggests a priority from urgency keywords (urgent, blocker, crash,
+  security, …), deferrable keywords (cleanup, research, someday, …), and the
+  due date (overdue → High; due within 48 hours → bumped one level). Every
+  suggestion includes the reasons that produced it and a work label (bug /
+  feature / docs / chore / task). Exposed as the `triageTask` query and the
+  `autoTriageTask` mutation, plus "Suggest priority" and "Auto-triage"
+  buttons in the UI. No model is trained and no ML framework is used — the
+  rules are plain keyword/date logic, documented in the source file.
+- **Due-date reminders** (`server/src/reminders.ts`, pure functions):
+  `dueReminders` returns Overdue / Due today / Due soon (≤ 3 days) reminders
+  for open tasks, overdue first. Done tasks and tasks without a due date
+  never produce a reminder.
+- **Project summaries** (`server/src/aiSummary.ts`): `projectSummary` returns
+  a short summary, next steps, and task counts. With `GEMINI_API_KEY` set,
+  the task list is sent to the Gemini REST API (`generateContent`, default
+  model `gemini-2.5-flash`, 8-second timeout, input capped at 30 tasks) and
+  the model reply is parsed as JSON. Without a key — or if the call fails,
+  times out, or returns unusable output — a deterministic local summary built
+  from counts and priorities is returned instead. The `source` field
+  (`gemini` / `local`) always says which path produced the summary, and the
+  UI labels it the same way. The key is read from the environment only, is
+  never logged or returned, and is never committed. The Gemini path is
+  tested with a mocked `fetch` (no network, no key); no live Gemini call
+  was made during development.
 
 ## Architecture
 
@@ -40,10 +75,14 @@ Apollo Client · Express · Mongoose · Vite · Vitest
 devboard/
 ├── client/   React + TypeScript (Vite) + Apollo Client
 │   └── src/  App.tsx, graphql.ts (queries/mutations), components/
+│             (ProjectForm, TaskBoard, AutomationPanel)
 └── server/   Node.js + TypeScript (Express) + Apollo Server + Mongoose
     ├── src/  index.ts (HTTP + GraphQL entry), schema.ts, resolvers.ts,
-    │         models.ts (MongoDB/Mongoose), db.ts, seed.ts
-    └── tests/ graphql.test.ts (Vitest, in-memory MongoDB)
+    │         models.ts (MongoDB/Mongoose), db.ts, seed.ts,
+    │         triage.ts (rule-based auto-triage), reminders.ts
+    │         (due-date reminders), aiSummary.ts (Gemini/local summaries)
+    └── tests/ graphql.test.ts, automation.test.ts
+              (Vitest, in-memory MongoDB)
 ```
 
 The React frontend talks to the GraphQL API at `/graphql` (proxied to the
@@ -59,7 +98,7 @@ Atlas). No MongoDB is needed to run the tests — they use an in-memory server.
 cd server
 npm install
 cp .env.example .env        # set MONGODB_URI if not using local MongoDB
-npm run seed                # optional: load 2 projects + 5 tasks
+npm run seed                # optional: load 2 projects + 6 tasks
 npm run dev                 # http://localhost:4000/graphql
 
 # 2. Frontend (terminal 2)
@@ -74,6 +113,8 @@ npm run dev                 # http://localhost:5173
 | --- | --- | --- |
 | `PORT` | `4000` | Port the API server listens on |
 | `MONGODB_URI` | `mongodb://127.0.0.1:27017/devboard` | MongoDB connection string |
+| `GEMINI_API_KEY` | _(unset)_ | Optional. Gemini API key for AI project summaries. When unset, summaries use the local fallback — the app works fully without it. Never commit a real key. |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Gemini model used for summaries when a key is set |
 
 No secrets are committed. `.env` files are git-ignored; only `.env.example`
 with placeholder values is in the repo.
@@ -82,7 +123,7 @@ with placeholder values is in the repo.
 
 ```bash
 cd server
-npm test          # 11 GraphQL tests (Vitest + mongodb-memory-server)
+npm test          # 42 tests (Vitest + mongodb-memory-server)
 npm run typecheck # tsc --noEmit, zero errors
 
 cd ../client
@@ -100,10 +141,24 @@ npm run build     # tsc + Vite production build
   was back to the seed data. Client dev server served the app and its
   `/graphql` proxy returned HTTP 200.
 
+## Verified end-to-end — AI automations (17 Nov 2026)
+
+- Backend: `tsc --noEmit` clean; **42/42 Vitest tests pass** (11 original
+  GraphQL tests + 31 new automation tests: triage rules, reminders, Gemini
+  summary with mocked `fetch`, and the new GraphQL operations) against an
+  in-memory MongoDB.
+- Frontend: `tsc` clean; `vite build` succeeds (322 modules).
+- Live round-trip over HTTP against a local MongoDB: `triageTask` returned
+  HIGH with reasons for an urgent task; `projectSummary` returned the local
+  summary with correct counts (no key set); `dueReminders` returned the
+  overdue task; `autoTriageTask` raised an urgent LOW task to HIGH and the
+  change persisted. No live Gemini call was made (no key used); the Gemini
+  path is covered by mocked-fetch tests only.
+
 ## Author
 
-Ankush Singh — Computer Science programme, Scaler School of Technology
-(2nd year), and B.Sc. Computer Science, BITS Pilani (online). GitHub:
+Ankush Singh — B.Tech., Computer Science, Scaler School of Technology
+(2nd year) and BITS Pilani (online). GitHub:
 [github.com/ankushsingh21123-blip](https://github.com/ankushsingh21123-blip).
 
 Built as a proof project for the Weekday Software Engineer Intern application.
